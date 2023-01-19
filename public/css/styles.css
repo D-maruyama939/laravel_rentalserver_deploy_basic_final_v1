@@ -1,0 +1,68 @@
+/*その他*/
+/* エラーメッセージ用のスタイル */
+.error{
+    color: red;
+}
+
+/* 成功メッセージ用のスタイル */
+.success{
+    color: green;
+}
+
+/*警告メッセージ用のスタイル*/
+.warning{
+    color: red;
+}
+
+/*全範囲に対して*/
+a{
+    text-decoration: none;
+}
+
+ul{
+    list-style: none;
+}
+
+/*ヘッダー関係*/
+header{
+    display: flex;
+    justify-content: space-between;
+}
+
+.header_nav, .header_nav_left, .header_nav_right{
+    display: flex;
+    list-style: none;
+    padding-left: 0;
+}
+
+.header_nav li, .header_nav_left li, .header_nav_right li{
+    margin-right: 30px;
+}
+
+.header_logo{
+    width: 95px;
+}
+
+/*投稿一覧 (posts.index)*/
+.index_posts li{
+    border-bottom: solid 1px #d3d3d3;
+    padding: 10px;
+}
+
+.index_posts li:first-child{
+    border-top: solid 1px #d3d3d3;;
+}
+
+.index_post_name{
+    /*background-color: #c1e4e9;*/
+    font-weight: bold;
+}
+
+.index_post_comment{
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+.index_post_delete{
+    display: inline;
+}
