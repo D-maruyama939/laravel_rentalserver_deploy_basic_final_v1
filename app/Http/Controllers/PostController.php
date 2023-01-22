@@ -6,14 +6,23 @@ use Illuminate\Http\Request;
 use App\Post;
 use App\Http\Requests\PostRequest;
 use App\Services\AuthorityCheckService;
+use App\User;
 
 class PostController extends Controller
 {
     public function index(){
-        $posts = Post::where('user_id',\Auth::user()->id)->latest()->get();
+        // ログインユーザーがフォローしているユーザーのidを取得
+        $follow_user_ids = \Auth::user()->follow_users->pluck('id');
+        // ログインユーザーが未フォローのユーザーを新着順でで3件取得
+        $recommended_users = User::whereNotIn('id', $follow_user_ids)->where('id', '<>', \Auth::user()->id)->latest()->limit(3)->get();
+        
+        // ログインユーザーとフォローユーザーの投稿を取得
+        $posts = \Auth::user()->posts()->orWhereIn('user_id', $follow_user_ids)->latest()->get();
+        
         return view('posts.index',[
             'title' => '投稿一覧',
             'posts' => $posts,
+            'recommended_users' => $recommended_users,
         ]);
     }
     

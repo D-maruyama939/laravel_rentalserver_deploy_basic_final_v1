@@ -44,25 +44,35 @@ header{
 }
 
 /*投稿一覧 (posts.index)*/
-.index_posts li{
+/* フォローボタン */
+.index_recommend_user_follow, .user_show_follow {
+  cursor: pointer;
+}
+
+.index_posts li, .user_show_posts li{
     border-bottom: solid 1px #d3d3d3;
     padding: 10px;
 }
 
-.index_posts li:first-child{
+.index_posts li:first-child, .user_show_posts li:first-child{
     border-top: solid 1px #d3d3d3;;
 }
 
-.index_post_name{
+.index_post_name, .user_show_post_name{
     /*background-color: #c1e4e9;*/
     font-weight: bold;
 }
 
-.index_post_comment{
+.index_post_comment, .user_show_post_comment{
     padding-top: 5px;
     padding-bottom: 5px;
 }
 
-.index_post_delete{
+.index_post_delete, .user_show_post_delete{
     display: inline;
+}
+
+/*ユーザー詳細画面*/
+.user_show_name{
+    font-weight: bold;
 }

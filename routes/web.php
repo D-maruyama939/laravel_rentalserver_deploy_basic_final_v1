@@ -20,3 +20,11 @@ Auth::routes();
 Route::resource('posts', 'PostController')->only([
     'index','create','store','edit','update','destroy'
 ]);
+
+Route::resource('users', 'UserController')->only([
+    'show'
+]);
+    
+Route::resource('follows', 'FollowController')->only([
+    'store','destroy'
+]);
