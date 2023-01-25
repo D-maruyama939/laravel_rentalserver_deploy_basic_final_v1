@@ -24,4 +24,9 @@ class FollowController extends Controller
         session()->flash('success', 'フォロー解除しました');
         return redirect()->route('posts.index');
     }
+    
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
 }

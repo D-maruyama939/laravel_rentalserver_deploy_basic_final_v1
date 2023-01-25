@@ -10,19 +10,28 @@ use App\User;
 
 class PostController extends Controller
 {
-    public function index(){
+    public function index(Request $request){
         // ログインユーザーがフォローしているユーザーのidを取得
         $follow_user_ids = \Auth::user()->follow_users->pluck('id');
         // ログインユーザーが未フォローのユーザーを新着順でで3件取得
         $recommended_users = User::whereNotIn('id', $follow_user_ids)->where('id', '<>', \Auth::user()->id)->latest()->limit(3)->get();
         
-        // ログインユーザーとフォローユーザーの投稿を取得
-        $posts = \Auth::user()->posts()->orWhereIn('user_id', $follow_user_ids)->latest()->get();
+        // 検索ワードの受け取り
+        $search_word = $request->search_word;
         
+        if(isset($search_word)){
+            // 検索処理をし対象の投稿を取得
+            $posts = Post::where('user_id', '<>', \Auth::user()->id)->where('comment', 'like', "%$search_word%")->latest()->get();
+        }else{
+            // ログインユーザーとフォローユーザーの投稿を取得
+            $posts = \Auth::user()->posts()->orWhereIn('user_id', $follow_user_ids)->latest()->get();
+        }
+       
         return view('posts.index',[
             'title' => '投稿一覧',
             'posts' => $posts,
             'recommended_users' => $recommended_users,
+            'search_word' => $search_word,
         ]);
     }
     

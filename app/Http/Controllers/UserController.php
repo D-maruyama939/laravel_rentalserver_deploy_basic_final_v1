@@ -15,4 +15,9 @@ class UserController extends Controller
             'posts' => $user->posts()->latest()->get(),
         ]);
     }
+    
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
 }
