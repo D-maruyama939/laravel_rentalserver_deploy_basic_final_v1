@@ -5,6 +5,22 @@
 @section('content')
     <h1>{{ $title }}</h1>
     
+    {{-- 検索ウィンドウ --}}
+    <form method="get" action="{{ route('posts.index') }}">
+        @csrf
+        <input
+            type="text"
+            name="search_word"
+            
+            @if(isset($search_word))
+                value="{{ $search_word }}"
+            @else
+                placeholder="キーワードを入力"
+            @endif
+        >
+        <input type="submit" value="検索">
+    </form>
+    
     {{-- おすすめユーザー --}}
     <h2>おすすめユーザー</h2>
     <ul class="index_recommend_users">
@@ -57,7 +73,11 @@
                 @endif
             </li>
         @empty
-            <li>投稿がありません</li>
+            @if(isset($search_word))
+                <li>{{ $search_word }} を含む投稿はありません</li>
+            @else
+                <li>投稿がありません</li>
+            @endif
         @endforelse
     </ul>
 @endsection
