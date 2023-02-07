@@ -25,6 +25,14 @@ class FollowController extends Controller
         return redirect()->route('posts.index');
     }
     
+    // フォロー一覧
+    public function index(){
+        return view('follows.index',[
+            'title' => 'フォロー一覧'
+        ]);
+    }
+    
+    
     public function __construct()
     {
         $this->middleware('auth');

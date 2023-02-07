@@ -17,14 +17,29 @@ Route::get('/', function () {
 
 Auth::routes();
 
+// 投稿関連
 Route::resource('posts', 'PostController')->only([
     'index','create','store','edit','update','destroy'
 ]);
 
+// ユーザー関連
 Route::resource('users', 'UserController')->only([
     'show'
 ]);
-    
+// 登録完了画面
+Route::get('users/{user}/completion', 'UserController@completion')->name('users.completion');
+
+// フォロー関連
 Route::resource('follows', 'FollowController')->only([
-    'store','destroy'
+    'index','store','destroy'
+]);
+
+// プロフィール関連
+Route::resource('profile','ProfileController')->only([
+    'edit','update',
+]);
+
+// お気に入り関連
+Route::resource('favorites', 'FavoriteController')->only([
+    'index'
 ]);

@@ -16,6 +16,14 @@ class UserController extends Controller
         ]);
     }
     
+    public function completion($user){
+        
+        return view('users.completion',[
+            'title' => '登録完了'
+        ]);
+    }
+    
+    
     public function __construct()
     {
         $this->middleware('auth');
