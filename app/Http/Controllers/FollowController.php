@@ -13,8 +13,8 @@ class FollowController extends Controller
             'user_id' => \Auth::user()->id,
             'follow_id' => $request->follow_id,
         ]);
-        session()->flash('sucsess', 'フォローしました');
-        return redirect()->route('posts.index');
+        session()->flash('success', 'フォローしました');
+        return redirect()->route('users.show', $request->follow_id);
     }
     
     // フォロー削除処理
@@ -22,7 +22,7 @@ class FollowController extends Controller
         $follow = \Auth::user()->follows->where('follow_id',$id)->first();
         $follow->delete();
         session()->flash('success', 'フォロー解除しました');
-        return redirect()->route('posts.index');
+        return redirect()->route('users.show', $id);
     }
     
     // フォロー一覧
@@ -32,7 +32,7 @@ class FollowController extends Controller
         ]);
     }
     
-    
+    // ログインチェック
     public function __construct()
     {
         $this->middleware('auth');

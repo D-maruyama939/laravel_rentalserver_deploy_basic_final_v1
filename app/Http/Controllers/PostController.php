@@ -7,54 +7,200 @@ use App\Post;
 use App\Http\Requests\PostRequest;
 use App\Services\AuthorityCheckService;
 use App\User;
+use App\Prefecture;
+use App\TagGroup;
+use App\Http\Requests\PostNumberOfSpotsRequest;
+use App\Spot;
+use App\Services\FileUploadService;
+use App\Favorite;
+use App\Http\Requests\PostEditRequest;
+use App\Services\PostCreateService;
+use App\Http\Requests\PostSearchRequest;
+use App\Tag;
+use Illuminate\Support\Facades\DB;
 
 class PostController extends Controller
 {
-    public function index(Request $request){
-        // ログインユーザーがフォローしているユーザーのidを取得
-        $follow_user_ids = \Auth::user()->follow_users->pluck('id');
-        // ログインユーザーが未フォローのユーザーを新着順でで3件取得
-        $recommended_users = User::whereNotIn('id', $follow_user_ids)->where('id', '<>', \Auth::user()->id)->latest()->limit(3)->get();
+    // HOME画面（投稿一覧）
+    public function index(PostSearchRequest $request){
+        // 初期化
+        $key_word = '';
+        $prefecture = '';
+        $tags = '';
+        $post_id = '';
         
-        // 検索ワードの受け取り
-        $search_word = $request->search_word;
+        $post_query = Post::query();
         
-        if(isset($search_word)){
-            // 検索処理をし対象の投稿を取得
-            $posts = Post::where('user_id', '<>', \Auth::user()->id)->where('comment', 'like', "%$search_word%")->latest()->get();
-        }else{
-            // ログインユーザーとフォローユーザーの投稿を取得
-            $posts = \Auth::user()->posts()->orWhereIn('user_id', $follow_user_ids)->latest()->get();
+        // 都道府県名・タイトル・スポット名・スポットコメント・タグのいずれかにキーワードを含む投稿を取得するクエリビルダを追加
+        if(isset($request->key_word)){
+            $key_word = $request->key_word;
+            
+            // 全ての投稿の投稿タイトル、スポット名、コメント、タグ、都道府県を各投稿毎に一つの文字列にして、その文字列に検索ワードを含むものを取得
+            foreach(Post::all() as $post){
+                // タイトル、都道府県を文字列として結合し$post_stringに代入
+                $post_string = "\n". $post->title ."\n". $post->prefecture->prefecture."\n";
+                
+                // スポット名、コメントを文字列に結合
+                foreach($post->spots as $spot){
+                    $post_string = $post_string . $spot->spot_name ."\n". $spot->spot_comment ."\n";
+                }
+                
+                // タグを文字列に結合
+                foreach($post->tags as $tag){
+                    $post_string = $post_string ."\n". $tag->tag_name ."\n";
+                }
+                
+                // 文字列を配列に代入
+                $post_strings[$post->id] = $post_string;
+            }
+            
+            // キーワードを含んでいる投稿があれば、その投稿を配列で取得
+            $results = preg_grep("/\n(.)*$key_word(.)*\n/", $post_strings);
+            // 配列のキーを取得
+            $result_keys = array_keys($results);
+            
+            // 該当の投稿を取得するクエリを生成
+            $post_query->whereIn('id', $result_keys);
         }
-       
+        
+        // 選択された都道府県が設定されている投稿を取得するクエリビルダを追加
+        if(isset($request->prefecture_id)){
+            $prefecture = Prefecture::find($request->prefecture_id);
+            $post_query->where('prefecture_id', $request->prefecture_id);
+        }
+        
+        // 選択されたタグが全て設定されている投稿を取得するクエリビルダを追加
+        if(isset($request->tag_ids)){
+            $tags = Tag::whereIn('id', $request->tag_ids)->get();
+            
+            foreach($request->tag_ids as $tag_id){ //選択されたタグのidをループで回し、選択されたタグすべてを持つ投稿を絞り込むクエリビルダを生成
+                $post_query->whereHas('tags', function($query) use($tag_id){
+                    $query->where('tags.id', $tag_id);
+                });
+            };
+        }
+        
+        // 投稿のidが指定されていれば、対応する投稿を取得するクエリビルダを生成
+        if(isset($request->post_id)){
+            $post_id = $request->post_id;
+            $post_query->where('id', $request->post_id);
+        }
+        
+        // 検索条件がなければ、タイムラインを取得し、おすすめの投稿を絞り込むクエリビルダを生成
+        $time_line_posts = null;
+        if($key_word==='' && $prefecture==='' && $tags==='' && $post_id===''){
+            // タイムラインを取得
+            $follow_user_ids = \Auth::user()->follow_users->pluck('id');
+            $time_line_posts = \Auth::user()->posts()->orWhereIn('user_id', $follow_user_ids )->latest()->get();
+
+
+            // おすすめの投稿を取得 自分がお気に入りした投稿にお気に入りしたユーザーズが、お気に入りしている投稿をお気に入り数ランキングにして上位5件を取得->ランダムに2件表示
+            $user_id = \Auth::user()->id;
+            $my_favorite_post_ids = Favorite::where('user_id', $user_id)->get()->pluck('post_id'); //自分ががお気に入りした投稿のidを取得
+            $favorited_my_favorite_user_ids = Favorite::whereIn('post_id', $my_favorite_post_ids)->where('user_id', '<>', $user_id)->get()->pluck('user_id')->unique(); //自分がお気に入りした投稿にお気に入りしたユーザーのidを重複をのぞいて取得
+            
+            $recommend_post_ids = DB::table('favorites')
+                ->select('post_id', DB::raw('count(favorites.post_id) as count_post')) //favoritesテーブルからpost_idとcount_post(post_idの出現回数をcount_postというカラムに格納したもの)を抜き出す
+                ->whereIn('user_id', $favorited_my_favorite_user_ids) //$favorited_my_favorite_user_ids にuser_idが含まれている投稿を絞り込み
+                ->groupBy('post_id') //post_idでクループ化
+                ->orderBy('count_post', 'desc') //count_postの大きさで降順に並び替え
+                ->take(5) // ランキングの上位5件を取得
+                ->get()
+                ->random(2)
+                ->pluck('post_id');
+            
+            $posts = Post::whereIn('id', $recommend_post_ids)->get();
+        
+        // $posts = DB::table('favorites')
+            //         ->select('posts.*', DB::raw('COUNT(DISTINCT favorites.user_id) as favorite_count'))
+            //         ->join('posts', 'posts.id', '=', 'favorites.post_id')
+            //         ->where('favorites.user_id', '<>', $user_id) // 自分以外のユーザーのお気に入りを取得
+            //         ->whereIn('favorites.post_id', function ($query) use ($user_id) {
+            //             $query->select('post_id')
+            //                 ->from('favorites')
+            //                 ->where('user_id', $user_id);
+            //         }) // 自分のお気に入りした投稿にいいねしている他のユーザーのお気に入りを取得
+            //         ->groupBy('posts.id')
+            //         ->orderByDesc('favorite_count')
+            //         ->take(5) // ランキングの上位5件を取得
+            //         ->inRandomOrder() 
+            //         ->limit(2) //ランダムに2件取得
+            //         ->get();
+            
+        }else{
+            // 検索条件がセットされていれば、条件に該当するの投稿を取得
+            $posts = $post_query->latest()->get();
+        }
+        
+        
         return view('posts.index',[
-            'title' => '投稿一覧',
+            'title' => 'HOME',
             'posts' => $posts,
-            'recommended_users' => $recommended_users,
-            'search_word' => $search_word,
+            'time_line_posts' => $time_line_posts,
+            'key_word' => $key_word,
+            'prefecture' => $prefecture,
+            'tags' => $tags,
+            'post_id' => $post_id,
         ]);
     }
     
-    public function create(){
+    // 新規投稿画面 1/2（投稿のスポット数を選択する画面）
+    public function create_send_number_of_spots(){
+        return view('posts.create_send_number_of_spots',[
+            'title' => '新規投稿フォーム１'
+        ]);
+    }
+    
+    // 新規投稿画面 2/2（投稿のメインフォーム画面）
+    public function create_main(PostNumberOfSpotsRequest $request){
         return view('posts.create',[
-            'title' => '新規投稿フォーム',
+            'title' => '新規投稿フォーム２',
+            'prefectures' => Prefecture::all(),
+            'tag_groups' => TagGroup::all(),
+            'number_of_spots' => $request->number_of_spots,
         ]);
     }
     
-    public function store(PostRequest $request){
-        Post::create([
+    // 投稿投稿作成処理
+    public function store(PostRequest $request, AuthorityCheckService $authority_check_service, FileUploadService $file_upload_service, PostCreateService $post_create_service){
+    //public function store(Request $request, AuthorityCheckService $authority_check_service, FileUploadService $file_upload_service, PostCreateService $post_create_service){
+
+        // スポット数、スポットに関する各項目（spot_names,spot_images,spot_comments）に不正がないかチェック
+        $is_result = $authority_check_service->is_legal_number_of_spots_and_array_keys_for_store($request);
+        // 不正があれば、リダイレクトして警告を表示
+        $authority_check_service->if_cheater_indicate_warning($is_result);
+        if($is_result !== true){
+            return redirect()->route('posts.index');
+        }
+        
+        // 投稿の都道府県・タイトルを保存
+        $post = Post::create([
             'user_id' => \Auth::user()->id,
-            'comment' => $request->comment,
+            'prefecture_id' => $request->prefecture_id,
+            'title' => $request->title,
         ]);
+        
+        // 投稿のスポット部分を保存
+        for($i = 0; $i <= $request->number_of_spots-1; $i++){
+            Spot::create([
+                'post_id' => $post->id,
+                'spot_img' => $file_upload_service->saveImage($request->file('spot_images')[$i]), // spot_image[$i]に画像がセットされていれば、保存しファイルパスをリターン。否ならば''をリターン
+                'spot_name' => $request->spot_names[$i],
+                'spot_comment' => $request->spot_comments[$i],
+            ]);
+        }
+        
+        // 投稿のタグ部分を保存
+        $post_create_service->createPostTag($post, $request);
+        
         session()->flash('success', '投稿を追加しました');
         return redirect()->route('posts.index');
     }
     
+    // 投稿編集画面
     public function edit(Post $post, AuthorityCheckService $service){
-        
-        // 該当の投稿がログインユーザーの投稿かチェック
+        // 該当の投稿がログインユーザーの投稿かチェック、不正なアクセスならばリダイレクトし警告を表示
         $is_result = $service->is_owner($post);
-        // 不正なアクセスならば、リダイレクトし警告を表示
         $service->if_cheater_indicate_warning($is_result);
         if($is_result !== true){
             return redirect()->route('posts.index');
@@ -63,28 +209,72 @@ class PostController extends Controller
         return view('posts.edit', [
             'title' => '投稿編集フォーム',
             'post' => $post,
+            'prefectures' => Prefecture::all(),
+            'tag_groups' => TagGroup::all(),
         ]);
     }
     
-    public function update(Post $post, PostRequest $request, AuthorityCheckService $service){
-        
+    // 投稿編集処理
+    public function update(Post $post, PostEditRequest $request, AuthorityCheckService $authority_check_service, FileUploadService $file_upload_service, PostCreateService $post_create_service){
         // 該当の投稿がログインユーザーの投稿かチェック
-        $is_result = $service->is_owner($post);
-        // 不正なアクセスならば、リダイレクトし警告を表示
-        $service->if_cheater_indicate_warning($is_result);
+        $is_result = $authority_check_service->is_owner($post);
+        // 不正なアクセスならばリダイレクトし警告を表示
+        $authority_check_service->if_cheater_indicate_warning($is_result);
+        if($is_result !== true){
+            return redirect()->route('posts.index');
+        }
+        
+        // スポット画像が新たに登録されたキーを取得、画像が登録されていなければnullを代入
+        $spot_image_keys = (array)null; //画像更新処理で用いるin_array関数の都合で、配列として初期化
+        if(isset($request->spot_images)){
+            $spot_image_keys = array_keys($request->spot_images);
+        }
+        
+        // フォームに不正が無いかチェック
+        $is_result = $authority_check_service->is_legal_array_keys_for_edit($request, $post, $spot_image_keys);
+        // 不正な操作がされていればリダイレクトし警告を表示
+        $authority_check_service->if_illegal_indicate_warning($is_result);
         if($is_result !== true){
             return redirect()->route('posts.index');
         }
         
         // 更新処理
-        $post->update($request->only(['comment']));
+        // 都道府県・タイトルを更新
+        $post->update([
+            'prefecture_id' => $request->prefecture_id,
+            'title' => $request->title,
+        ]);
+        
+        // スポットを更新
+        foreach($post->spots()->oldest()->get() as $index => $spot){
+            $spot->update([ //スポット[$index]のスポット名と、コメントを更新
+                'spot_name' => $request->spot_names[$index],
+                'spot_comment' => $request->spot_comments[$index],
+            ]);
+            
+            if(in_array($index, $spot_image_keys)){ //スポット[$index]に新たな画像がセットされていれば、画像を更新
+                $path = $file_upload_service->saveImage($request->file('spot_images')[$index]); //ファイルをアップロード
+                if($spot->spot_img  !== ''){
+                    \Storage::disk('public')->delete('users_image/' . $spot->spot_image); //既存のファイルを削除
+                }
+                $spot->update([
+                    'spot_img' => $path, //新画像のファイルパスを保存
+                ]);
+            }
+        }
+        
+        // 投稿のタグを更新
+        foreach($post->postTags as $post_tag){
+            $post_tag->delete(); //既に設定されているタグを全て削除
+        }
+        $post_create_service->createPostTag($post, $request); //新たにタグを設定
         
         session()->flash('success', '投稿を編集しました');
         return redirect()->route('posts.index');
     }
     
+    // 投稿削除処理
     public function destroy(Post $post, AuthorityCheckService $service){
-        
         // 該当の投稿がログインユーザーの投稿かチェック
         $is_result = $service->is_owner($post);
         // 不正なアクセスならば、リダイレクトし警告を表示
@@ -100,6 +290,36 @@ class PostController extends Controller
         return redirect()->route('posts.index');
     }
     
+    // 投稿のお気に入り追加・削除処理
+    public function toggleFavorite(Post $post){
+        $user = \Auth::user();
+        
+        if($post->isFavoritedBy($user)){
+            // 既にお気に入りしていれば取り消し
+            $post->favorites->where('user_id', $user->id)->first()->delete();
+            session()->flash('success', 'お気に入りを解除しました');
+        }else{
+            // お気に入りされていなければお気に入り追加
+            Favorite::create([
+                'user_id' => $user->id,
+                'post_id' => $post->id,
+            ]);
+            session()->flash('success', 'お気に入りに追加しました');
+        }
+        
+        return redirect()->route('posts.index');
+    }
+    
+    // 投稿検索画面
+    public function search_form(){
+        return view('posts.search_form',[
+            'title' => '投稿検索',
+            'prefectures' => Prefecture::all(),
+            'tag_groups' => TagGroup::all(),
+        ]);
+    }
+    
+    // ログインチェック
     public function __construct()
     {
         $this->middleware('auth');

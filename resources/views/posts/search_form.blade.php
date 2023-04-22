@@ -5,10 +5,9 @@
 @section('content')
     <h1>{{ $title }}</h1>
     
-    {{--投稿フォーム--}}
-    <form method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
-        @csrf
-        <div class="form-group mt-3 form-row">
+    <form method="GET" action="{{route('posts.index')}}">
+        {{-- 都道府県 --}}
+        <div class="form-group form-row">
             <label for="prefecture" class="col-md-12">都道府県</label>
             <div class="col-md-5">
                 <select name="prefecture_id" class="form-control" id="prefecture">
@@ -20,28 +19,7 @@
             </div>
         </div>
         
-        <div class="form-group">
-            <label for="title">投稿タイトル</label>
-            <input type="text" name="title" class="form-control" id="title">
-        </div>
-        
-        {{-- 各スポットの入力フォーム --}}
-        @for($i=1; $i<=$number_of_spots; $i++)
-            <div>【 スポット {{ $i }} / {{ $number_of_spots }} 】</div>
-            <div class="form-group">
-                <label for="spot_name">スポット名</label>
-                <input type="text" name="spot_names[]" class="form-control" id="spot_name">
-            </div>
-            <div class="form-group">
-                <label for="spot_image">スポット画像（2MB未満）</label>
-                <input type="file" name="spot_images[]" class="form-control-file" id="spot_image">
-            </div>
-            <div class="form-group">
-                <label for="spot_comment">スポット説明</label>
-                <textarea name="spot_comments[]" rows="5" cols="60" class="form-control" id="spot_comment"></textarea>
-            </div>
-        @endfor
-        
+        {{-- タグ --}}
         <div class="form-check mb-3">
             <div class="mb-2">タグ（複数選択可）</div>
             <div>
@@ -73,13 +51,16 @@
             </div>
         </div>
         
-        <input type="hidden" name="number_of_spots" value="{{ $number_of_spots }}">
+        {{-- キーワード --}}
+        <div class="form-group">
+            <label for="key_word">キーワード</label>
+            <input class="form-control" type="text" name="key_word" id="key_word" placeholder="キーワードを入力してください">
+        </div>
         
         <div class="form-row">
             <div class="col-12 text-right">
-                <button type="submit" class="btn btn-primary mt-2 mb-3">投稿</button>
+                <button type="submit" class="btn btn-primary mt-2">検索</button>
             </div>
         </div>
-        
     </form>
 @endsection

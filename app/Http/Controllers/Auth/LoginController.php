@@ -42,8 +42,4 @@ class LoginController extends Controller
     public function loggedOut(Request $request){
         return redirect(route('login'));
     }
-    
-    public function username(){
-        return 'name';
-    }
 }

@@ -29,7 +29,7 @@ class RegisterController extends Controller
      *
      * @var string
      */
-    protected $redirectTo = '/posts';
+    protected $redirectTo = '/completion';
 
     /**
      * Create a new controller instance.
@@ -50,12 +50,16 @@ class RegisterController extends Controller
     protected function validator(array $data)
     {
         return Validator::make($data, [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:50'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            
+            // カスタマイズで追加した項目のバリデーション
+            'prefecture_id' => ['required','integer', 'exists:prefectures,id'],
+            'birthdate' => ['required', 'date', 'before:now'],
         ]);
     }
-
+    
     /**
      * Create a new user instance after a valid registration.
      *
@@ -68,6 +72,11 @@ class RegisterController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            
+            // カスタムで追加した項目の書き込み
+            'prefecture_id' => $data['prefecture_id'],
+            'birthdate' => $data['birthdate'],
+            'comment' => '', //ユーザー作成段階では''に設定
         ]);
     }
 }
