@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class PostRequest extends FormRequest
+class PostEditRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -27,11 +27,9 @@ class PostRequest extends FormRequest
             'prefecture_id' => ['required', 'exists:prefectures,id'],
             'title' => ['required', 'max:50'],
             'spot_names.*' => ['required', 'max:30'],
-            'spot_images.*' => ['required','file', 'image','mimes:jpeg,jpg,png','max:2048'],
-            'spot_images'=>['required','array','min:1'], 
+            'spot_images.*' => ['nullable', 'file', 'image','mimes:jpeg,jpg,png','max:2048'],
             'spot_comments.*' => ['required', 'max:500'],
             'tag_ids' => ['required', 'exists:tags,id'],
-            'number_of_spots' => ['required', 'integer', 'between:1,10'],
         ];
     }
     
