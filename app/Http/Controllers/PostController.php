@@ -35,32 +35,46 @@ class PostController extends Controller
         if(isset($request->key_word)){
             $key_word = $request->key_word;
             
-            // 全ての投稿の投稿タイトル、スポット名、コメント、タグ、都道府県を各投稿毎に一つの文字列にして、その文字列に検索ワードを含むものを取得
-            foreach(Post::all() as $post){
-                // タイトル、都道府県を文字列として結合し$post_stringに代入
-                $post_string = "\n". $post->title ."\n". $post->prefecture->prefecture."\n";
+            $post_ids = DB::table('posts')
+                ->select('posts.id') //posts.idを取得
+                ->join('spots', 'posts.id', '=', 'spots.post_id') //検索に必要なテーブルを結合
+                ->join('prefectures', 'posts.prefecture_id', '=', 'prefectures.id')
+                ->join('post__tags', 'posts.id', '=', 'post__tags.post_id')
+                ->join('tags', 'post__tags.tag_id', '=', 'tags.id')
+                ->where(DB::raw('CONCAT(posts.title, spots.spot_name, spots.spot_comment, prefectures.prefecture, tags.tag_name)'), 'like', "%$key_word%") //キーワードを含むレコードを絞り込み
+                ->groupBy('posts.id') //posts.idを基準に重複を除外
+                ->get()
+                ->pluck('id'); //該当する投稿のidを取得
                 
-                // スポット名、コメントを文字列に結合
-                foreach($post->spots as $spot){
-                    $post_string = $post_string . $spot->spot_name ."\n". $spot->spot_comment ."\n";
-                }
-                
-                // タグを文字列に結合
-                foreach($post->tags as $tag){
-                    $post_string = $post_string ."\n". $tag->tag_name ."\n";
-                }
-                
-                // 文字列を配列に代入
-                $post_strings[$post->id] = $post_string;
-            }
+            $post_query->whereIn('id', $post_ids);
             
-            // キーワードを含んでいる投稿があれば、その投稿を配列で取得
-            $results = preg_grep("/\n(.)*$key_word(.)*\n/", $post_strings);
-            // 配列のキーを取得
-            $result_keys = array_keys($results);
+            // // 全ての投稿の投稿タイトル、スポット名、コメント、タグ、都道府県を各投稿毎に一つの文字列にして、その文字列に検索ワードを含むものを取得
+            // foreach(Post::all() as $post){
+            //     // タイトル、都道府県を文字列として結合し$post_stringに代入
+            //     $post_string = "\n". $post->title ."\n". $post->prefecture->prefecture."\n";
+                
+            //     // スポット名、コメントを文字列に結合
+            //     foreach($post->spots as $spot){
+            //         $post_string = $post_string . $spot->spot_name ."\n". $spot->spot_comment ."\n";
+            //     }
+                
+            //     // タグを文字列に結合
+            //     foreach($post->tags as $tag){
+            //         $post_string = $post_string ."\n". $tag->tag_name ."\n";
+            //     }
+                
+            //     // 文字列を配列に代入
+            //     $post_strings[$post->id] = $post_string;
+            // }
             
-            // 該当の投稿を取得するクエリを生成
-            $post_query->whereIn('id', $result_keys);
+            // // キーワードを含んでいる投稿があれば、その投稿を配列で取得
+            // $results = preg_grep("/\n(.)*$key_word(.)*\n/", $post_strings);
+            // // 配列のキーを取得
+            // $result_keys = array_keys($results);
+            // dd($result_keys);
+            
+            // // 該当の投稿を取得するクエリを生成
+            // $post_query->whereIn('id', $result_keys);
         }
         
         // 選択された都道府県が設定されている投稿を取得するクエリビルダを追加
@@ -94,38 +108,29 @@ class PostController extends Controller
             $time_line_posts = \Auth::user()->posts()->orWhereIn('user_id', $follow_user_ids )->latest()->get();
 
 
-            // おすすめの投稿を取得 自分がお気に入りした投稿にお気に入りしたユーザーズが、お気に入りしている投稿をお気に入り数ランキングにして上位5件を取得->ランダムに2件表示
-            $user_id = \Auth::user()->id;
-            $my_favorite_post_ids = Favorite::where('user_id', $user_id)->get()->pluck('post_id'); //自分ががお気に入りした投稿のidを取得
-            $favorited_my_favorite_user_ids = Favorite::whereIn('post_id', $my_favorite_post_ids)->where('user_id', '<>', $user_id)->get()->pluck('user_id')->unique(); //自分がお気に入りした投稿にお気に入りしたユーザーのidを重複をのぞいて取得
-            
-            $recommend_post_ids = DB::table('favorites')
-                ->select('post_id', DB::raw('count(favorites.post_id) as count_post')) //favoritesテーブルからpost_idとcount_post(post_idの出現回数をcount_postというカラムに格納したもの)を抜き出す
-                ->whereIn('user_id', $favorited_my_favorite_user_ids) //$favorited_my_favorite_user_ids にuser_idが含まれている投稿を絞り込み
-                ->groupBy('post_id') //post_idでクループ化
-                ->orderBy('count_post', 'desc') //count_postの大きさで降順に並び替え
-                ->take(5) // ランキングの上位5件を取得
-                ->get()
-                ->random(2)
-                ->pluck('post_id');
-            
-            $posts = Post::whereIn('id', $recommend_post_ids)->get();
-        
-        // $posts = DB::table('favorites')
-            //         ->select('posts.*', DB::raw('COUNT(DISTINCT favorites.user_id) as favorite_count'))
-            //         ->join('posts', 'posts.id', '=', 'favorites.post_id')
-            //         ->where('favorites.user_id', '<>', $user_id) // 自分以外のユーザーのお気に入りを取得
-            //         ->whereIn('favorites.post_id', function ($query) use ($user_id) {
-            //             $query->select('post_id')
-            //                 ->from('favorites')
-            //                 ->where('user_id', $user_id);
-            //         }) // 自分のお気に入りした投稿にいいねしている他のユーザーのお気に入りを取得
-            //         ->groupBy('posts.id')
-            //         ->orderByDesc('favorite_count')
-            //         ->take(5) // ランキングの上位5件を取得
-            //         ->inRandomOrder() 
-            //         ->limit(2) //ランダムに2件取得
-            //         ->get();
+            // おすすめの投稿を取得
+            if(\Auth::user()->favorites()->count() !== 0){
+                // ユーザーがお気に入りした投稿にお気に入りしたユーザーズが、お気に入りしている投稿をお気に入り数ランキングにして上位5件を取得->ランダムに2件表示
+                 $user_id = \Auth::user()->id;
+                $my_favorite_post_ids = Favorite::where('user_id', $user_id)->get()->pluck('post_id'); //自分ががお気に入りした投稿のidを取得
+                $favorited_my_favorite_user_ids = Favorite::whereIn('post_id', $my_favorite_post_ids)->where('user_id', '<>', $user_id)->get()->pluck('user_id')->unique(); //自分がお気に入りした投稿にお気に入りしたユーザーのidを重複をのぞいて取得
+                
+                $recommend_post_ids = DB::table('favorites')
+                    ->select('post_id', DB::raw('count(favorites.post_id) as count_post')) //favoritesテーブルからpost_idとcount_post(post_idの出現回数をcount_postというカラムに格納したもの)を抜き出す
+                    ->whereIn('user_id', $favorited_my_favorite_user_ids) //$favorited_my_favorite_user_ids にuser_idが含まれている投稿を絞り込み
+                    ->groupBy('post_id') //post_idでクループ化
+                    ->orderBy('count_post', 'desc') //count_postの大きさで降順に並び替え
+                    ->limit(5) // ランキングの上位5件を取得
+                    ->get()
+                    ->shuffle()
+                    ->take(2)
+                    ->pluck('post_id');
+                
+                $posts = Post::whereIn('id', $recommend_post_ids)->get();
+            }else{
+                // ユーザーのお気に入りがない場合はランダムに2件取得
+                $posts = Post::inRandomOrder()->limit(2)->get();
+            }
             
         }else{
             // 検索条件がセットされていれば、条件に該当するの投稿を取得
