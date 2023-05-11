@@ -49,7 +49,7 @@
             </div>
             <div class="form-group">
                 <label for="spot_comment">スポット説明</label>
-                <textarea name="spot_comments[]" class="form-control" id="spot_comment" rows="5" cols="60">{!! nl2br(e($spot->spot_comment)) !!}</textarea>
+                <textarea name="spot_comments[]" class="form-control" id="spot_comment" rows="5" cols="60">{{ $spot->spot_comment }}</textarea>
             </div>
         @endforeach
         
