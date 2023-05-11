@@ -89,11 +89,11 @@
                                 <div class="container">
                                     <div class="row">
                                         {{-- スポット画像 --}}
-                                        <div class="col-md-6 col-12">
+                                        <div class="col-lg-6 col-12">
                                             <img src="{{ asset('storage/' .$spot->spot_img) }}" class="d-block w-100">
                                         </div>
                                         
-                                        <div clas="col-md-6 col-12">
+                                        <div clas="col-lg-6 col-12">
                                             {{-- スポット名 --}}
                                             <div class="mt-md-0 mt-2">
                                                 <i class="fas fa-map-pin"></i>
