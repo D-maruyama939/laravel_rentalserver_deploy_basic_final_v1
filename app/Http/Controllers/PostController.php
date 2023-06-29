@@ -47,34 +47,6 @@ class PostController extends Controller
                 ->pluck('id'); //該当する投稿のidを取得
                 
             $post_query->whereIn('id', $post_ids);
-            
-            // // 全ての投稿の投稿タイトル、スポット名、コメント、タグ、都道府県を各投稿毎に一つの文字列にして、その文字列に検索ワードを含むものを取得
-            // foreach(Post::all() as $post){
-            //     // タイトル、都道府県を文字列として結合し$post_stringに代入
-            //     $post_string = "\n". $post->title ."\n". $post->prefecture->prefecture."\n";
-                
-            //     // スポット名、コメントを文字列に結合
-            //     foreach($post->spots as $spot){
-            //         $post_string = $post_string . $spot->spot_name ."\n". $spot->spot_comment ."\n";
-            //     }
-                
-            //     // タグを文字列に結合
-            //     foreach($post->tags as $tag){
-            //         $post_string = $post_string ."\n". $tag->tag_name ."\n";
-            //     }
-                
-            //     // 文字列を配列に代入
-            //     $post_strings[$post->id] = $post_string;
-            // }
-            
-            // // キーワードを含んでいる投稿があれば、その投稿を配列で取得
-            // $results = preg_grep("/\n(.)*$key_word(.)*\n/", $post_strings);
-            // // 配列のキーを取得
-            // $result_keys = array_keys($results);
-            // dd($result_keys);
-            
-            // // 該当の投稿を取得するクエリを生成
-            // $post_query->whereIn('id', $result_keys);
         }
         
         // 選択された都道府県が設定されている投稿を取得するクエリビルダを追加
