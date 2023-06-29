@@ -111,7 +111,7 @@ class PostController extends Controller
             // おすすめの投稿を取得
             if(\Auth::user()->favorites()->count() !== 0){
                 // ユーザーがお気に入りした投稿にお気に入りしたユーザーズが、お気に入りしている投稿をお気に入り数ランキングにして上位5件を取得->ランダムに2件表示
-                 $user_id = \Auth::user()->id;
+                $user_id = \Auth::user()->id;
                 $my_favorite_post_ids = Favorite::where('user_id', $user_id)->get()->pluck('post_id'); //自分ががお気に入りした投稿のidを取得
                 $favorited_my_favorite_user_ids = Favorite::whereIn('post_id', $my_favorite_post_ids)->where('user_id', '<>', $user_id)->get()->pluck('user_id')->unique(); //自分がお気に入りした投稿にお気に入りしたユーザーのidを重複をのぞいて取得
                 
